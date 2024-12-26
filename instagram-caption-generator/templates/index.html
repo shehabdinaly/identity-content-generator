@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Content Generator</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-content">
+                <div class="header-left">
+                    <img src="https://eb8e7f6d53.nxcli.net/wp-content/uploads/2019/10/identity4.png" alt="Identity Magazine" class="logo">
+                    <p class="header-description">
+                        This tool should help you as a copywriter or social media specialist to accelerate your work and gives you more humane written inspiration instead of robotic time-consuming back and forth with ChatGPT. Consider the outputs as only inspiration.
+                    </p>
+                </div>
+            </div>
+        </header>
+
+        <!-- Tab Navigation -->
+        <div class="tabs">
+            <button class="tab-button active" onclick="switchTab('branded')">Branded Content</button>
+            <button class="tab-button" onclick="switchTab('news')">News Content</button>
+        </div>
+
+        <!-- Branded Content Tab -->
+        <div id="branded" class="tab-content active">
+            <div class="input-section">
+                <textarea id="brandedInput" placeholder="Enter your branded content brief here..."></textarea>
+                
+                <div class="style-selection">
+                    <label for="styleSelect">Choose Caption Style:</label>
+                    <select id="styleSelect">
+                        <option value="default">Identity Magazine Default</option>
+                        <option value="professional">Professional</option>
+                        <option value="casual">Casual & Fun</option>
+                        <option value="motivational">Motivational</option>
+                        <option value="minimal">Minimal</option>
+                        <option value="storytelling">Storytelling</option>
+                        <option value="luxury">Luxury</option>
+                    </select>
+                </div>
+
+                <div class="file-upload">
+                    <label for="brandedFileInput">Or upload a file (PDF/DOCX)</label>
+                    <input type="file" id="brandedFileInput" accept=".pdf,.docx">
+                </div>
+                
+                <button class="generate-button" onclick="generateBrandedContent()">
+                    <span class="button-icon">✨</span>
+                    Generate Branded Captions
+                </button>
+            </div>
+        </div>
+
+        <!-- News Content Tab -->
+        <div id="news" class="tab-content">
+            <div class="input-section">
+                <textarea id="newsInput" placeholder="Enter your news content here (Will be generated in English)..."></textarea>
+                
+                <div class="file-upload">
+                    <label for="newsFileInput">Or upload a file (PDF/DOCX)</label>
+                    <input type="file" id="newsFileInput" accept=".pdf,.docx">
+                </div>
+                
+                <button class="generate-button" onclick="generateNewsContent()">
+                    <span class="button-icon">📰</span>
+                    Generate News Content
+                </button>
+            </div>
+        </div>
+
+        <!-- Loading Spinner -->
+        <div id="loadingSpinner" class="loading-spinner" style="display: none;">
+            <div class="spinner"></div>
+            <p>Generating your content...</p>
+        </div>
+
+        <!-- Output Section -->
+        <div class="output-section" id="outputSection" style="display: none;">
+            <h2>Generated Content:</h2>
+            
+            <div class="regenerate-section">
+                <button class="regenerate-button" onclick="regenerateContent()">
+                    <span class="button-icon">🔄</span> Regenerate Content
+                </button>
+            </div>
+
+            <div class="caption-container">
+                <h3>Option 1</h3>
+                <div id="captionOutput1" class="caption-box"></div>
+                <button class="copy-button" onclick="copyToClipboard('captionOutput1')">
+                    <span class="copy-icon">📋</span> Copy Content
+                </button>
+            </div>
+
+            <div class="caption-container">
+                <h3>Option 2</h3>
+                <div id="captionOutput2" class="caption-box"></div>
+                <button class="copy-button" onclick="copyToClipboard('captionOutput2')">
+                    <span class="copy-icon">📋</span> Copy Content
+                </button>
+            </div>
+
+            <div class="caption-container">
+                <h3>Option 3</h3>
+                <div id="captionOutput3" class="caption-box"></div>
+                <button class="copy-button" onclick="copyToClipboard('captionOutput3')">
+                    <span class="copy-icon">📋</span> Copy Content
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    function switchTab(tabName) {
+        const tabContents = document.querySelectorAll('.tab-content');
+        tabContents.forEach(content => {
+            content.classList.remove('active');
+        });
+        
+        const tabButtons = document.querySelectorAll('.tab-button');
+        tabButtons.forEach(button => {
+            button.classList.remove('active');
+        });
+        
+        document.getElementById(tabName).classList.add('active');
+        event.target.classList.add('active');
+        
+        document.getElementById('outputSection').style.display = 'none';
+    }
+
+    async function generateBrandedContent() {
+        const textInput = document.getElementById('brandedInput').value;
+        const fileInput = document.getElementById('brandedFileInput').files[0];
+
+        await generateContent('/generate-branded-caption', {
+            text_input: textInput,
+            style: document.getElementById('styleSelect').value,
+            file: fileInput
+        });
+    }
+
+    async function generateNewsContent() {
+        const textInput = document.getElementById('newsInput').value;
+        const fileInput = document.getElementById('newsFileInput').files[0];
+
+        await generateContent('/generate-news-content', {
+            text_input: textInput,
+            file: fileInput
+        });
+    }
+
+    async function generateContent(endpoint, data) {
+        document.getElementById('loadingSpinner').style.display = 'flex';
+        document.getElementById('outputSection').style.display = 'none';
+        
+        const formData = new FormData();
+        
+        // If there's a file, handle it first
+        if (data.file) {
+            const fileFormData = new FormData();
+            fileFormData.append('file', data.file);
+            
+            try {
+                const uploadResponse = await fetch('/upload', {
+                    method: 'POST',
+                    body: fileFormData
+                });
+                
+                if (!uploadResponse.ok) {
+                    throw new Error('File upload failed');
+                }
+                
+                const uploadResult = await uploadResponse.json();
+                if (uploadResult.text_content) {
+                    formData.append('text_input', uploadResult.text_content);
+                } else {
+                    throw new Error('No content extracted from file');
+                }
+            } catch (error) {
+                alert('Error uploading file: ' + error);
+                document.getElementById('loadingSpinner').style.display = 'none';
+                return;
+            }
+        } else if (data.text_input) {
+            formData.append('text_input', data.text_input);
+        }
+
+        // Add style if it exists
+        if (data.style) {
+            formData.append('style', data.style);
+        }
+
+        try {
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                body: formData
+            });
+            const result = await response.json();
+            
+            if (result.error) {
+                alert('Error: ' + result.error);
+                return;
+            }
+
+            document.getElementById('captionOutput1').innerHTML = result.caption1;
+            document.getElementById('captionOutput2').innerHTML = result.caption2;
+            document.getElementById('captionOutput3').innerHTML = result.caption3;
+            
+            document.getElementById('outputSection').style.display = 'block';
+        } catch (error) {
+            alert('Error generating content: ' + error);
+        } finally {
+            document.getElementById('loadingSpinner').style.display = 'none';
+        }
+    }
+
+    function copyToClipboard(elementId) {
+        const content = document.getElementById(elementId).textContent;
+        navigator.clipboard.writeText(content);
+        
+        const button = event.currentTarget;
+        const originalText = button.innerHTML;
+        button.innerHTML = '<span class="copy-icon">✅</span> Copied!';
+        setTimeout(() => {
+            button.innerHTML = originalText;
+        }, 2000);
+    }
+
+    document.querySelectorAll('input[type="file"]').forEach(input => {
+        input.addEventListener('change', function(e) {
+            const fileName = e.target.files[0]?.name || 'No file chosen';
+            const label = this.previousElementSibling;
+            label.textContent = fileName;
+
+            const textareaId = this.id === 'brandedFileInput' ? 'brandedInput' : 'newsInput';
+            document.getElementById(textareaId).value = '';
+        });
+    });
+
+    async function regenerateContent() {
+        const activeTab = document.querySelector('.tab-button.active');
+        if (activeTab.textContent.includes('Branded')) {
+            await generateBrandedContent();
+        } else {
+            await generateNewsContent();
+        }
+    }
+    </script>
+</body>
+</html>
